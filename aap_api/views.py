@@ -43,62 +43,52 @@ from .models import ExcelData
 
 logger = logging.getLogger(__name__)
 
-class ExcelDataListView(LoginRequiredMixin, ListView):
+class ExcelDataListView(ListView):
     model = ExcelData
     template_name = 'aap_api/item_list.html'
     context_object_name = 'items'
-    paginate_by = 20  # Increased from 10 for better performance
-    login_url = '/api/auth/login/'  # Redirect to login page if not authenticated
+    paginate_by = 50
 
     def get_queryset(self):
-        queryset = ExcelData.objects.select_related().order_by('-date_of_application')
-        
-        # Get all filter parameters at once
-        filters = {}
-        if job_title := self.request.GET.get('job_title'):
-            filters['job_title'] = job_title
-        if location := self.request.GET.get('location'):
-            filters['current_location__icontains'] = location
-        if company := self.request.GET.get('company'):
-            filters['current_company_name__icontains'] = company
-        if experience := self.request.GET.get('experience'):
-            filters['total_experience__icontains'] = experience
-        if name_search := self.request.GET.get('name_search'):
-            filters['name__icontains'] = name_search
+        queryset = ExcelData.objects.filter(is_visible=True)
 
-        return queryset.filter(**filters)
+        # Apply filters
+        name_search = self.request.GET.get('name_search')
+        job_title = self.request.GET.get('job_title')
+        location = self.request.GET.get('location')
+        company = self.request.GET.get('company')
+
+        if name_search:
+            queryset = queryset.filter(name__icontains=name_search)
+        if job_title:
+            queryset = queryset.filter(job_title=job_title)
+        if location:
+            queryset = queryset.filter(current_location=location)
+        if company:
+            queryset = queryset.filter(current_company_name=company)
+
+        return queryset.order_by('-created_at')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Add filter choices to context
-        context['job_titles'] = ExcelData.JOB_TITLE_CHOICES
-        context['locations'] = ExcelData.objects.values_list('current_location', flat=True).distinct()
-        context['companies'] = ExcelData.objects.values_list('current_company_name', flat=True).distinct()
         
-        # Add current filter values to context
+        # Add filter options
+        context['job_titles'] = ExcelData.objects.values_list(
+            'job_title', flat=True).distinct().exclude(job_title='')
+        context['locations'] = ExcelData.objects.values_list(
+            'current_location', flat=True).distinct().exclude(current_location='')
+        context['companies'] = ExcelData.objects.values_list(
+            'current_company_name', flat=True).distinct().exclude(current_company_name='')
+        
+        # Add current filter values
         context['current_filters'] = {
+            'name_search': self.request.GET.get('name_search', ''),
             'job_title': self.request.GET.get('job_title', ''),
             'location': self.request.GET.get('location', ''),
-            'company': self.request.GET.get('company', ''),
-            'experience': self.request.GET.get('experience', ''),
-            'name_search': self.request.GET.get('name_search', ''),
+            'company': self.request.GET.get('company', '')
         }
         
-        # Add total count
-        context['total_records'] = self.get_queryset().count()
-        
         return context
-
-    def post(self, request, *args, **kwargs):
-        if 'delete_record' in request.POST:
-            record_id = request.POST.get('record_id')
-            try:
-                record = ExcelData.objects.get(id=record_id)
-                record.delete()
-                return JsonResponse({'status': 'success'})
-            except ExcelData.DoesNotExist:
-                return JsonResponse({'status': 'error', 'message': 'Record not found'})
-        return redirect('aap_api:item_list')
 
 @method_decorator(csrf_exempt, name='dispatch')
 class ExcelDataViewSet(viewsets.ModelViewSet):
@@ -528,49 +518,41 @@ def get_all_data(request):
 
 @login_required
 def item_list(request):
-    # Get filter parameters
-    name_search = request.GET.get('name_search', '')
-    job_title = request.GET.get('job_title', '')
-    location = request.GET.get('location', '')
-    company = request.GET.get('company', '')
+    # Initialize queryset
+    queryset = ExcelData.objects.filter(is_visible=True)
 
-    # Base queryset
-    queryset = ExcelData.objects.all()
+    # Get search parameters
+    name_search = request.GET.get('name_search', '').strip()
+    job_title = request.GET.get('job_title', '').strip()
+    location = request.GET.get('location', '').strip()
 
     # Apply filters
     if name_search:
-        queryset = queryset.filter(name__icontains(name_search))
+        queryset = queryset.filter( Q(name__icontains=name_search) |
+            Q(email_id__icontains(name_search)) )
+           
+         
     if job_title:
-        queryset = queryset.filter(job_title=job_title)
+        queryset = queryset.filter(job_title__iexact=job_title)
+    
     if location:
-        queryset = queryset.filter(current_location=location)
-    if company:
-        queryset = queryset.filter(current_company_name=company)
+        queryset = queryset.filter(current_location__iexact=location)
 
     # Get unique values for dropdowns
-    job_titles = ExcelData.objects.values_list('job_title', flat=True).distinct()
-    locations = ExcelData.objects.values_list('current_location', flat=True).distinct()
-    companies = ExcelData.objects.values_list('current_company_name', flat=True).distinct()
-
-    # Pagination
-    paginator = Paginator(queryset, 30)  # Show 10 items per page
-    page = request.GET.get('page')
-    items = paginator.get_page(page)
-
     context = {
-        'items': items,
-        'total_records': queryset.count(),
-        'job_titles': [(jt, jt) for jt in job_titles if jt],
-        'locations': [loc for loc in locations if loc],
-        'companies': [comp for comp in companies if comp],
+        'items': queryset.order_by('-created_at'),
+        'job_titles': ExcelData.objects.values_list(
+            'job_title', flat=True
+        ).exclude(job_title='').distinct(),
+        'locations': ExcelData.objects.values_list(
+            'current_location', flat=True
+        ).exclude(current_location='').distinct(),
         'current_filters': {
             'name_search': name_search,
             'job_title': job_title,
             'location': location,
-            'company': company,
         },
-        'is_paginated': items.has_other_pages(),
-        'page_obj': items,
+        'total_results': queryset.count()
     }
 
     return render(request, 'aap_api/item_list.html', context)

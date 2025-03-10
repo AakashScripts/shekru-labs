@@ -34,15 +34,15 @@ urlpatterns = [
     path('data/export-excel/', ExcelDataViewSet.as_view({'get': 'export_excel'}), name='data-export-excel'),
     path('task-status/', ExcelDataViewSet.as_view({'get': 'task_status'}), name='task-status'),
     
-    # Updated data endpoint
-    path('api/data/all/', get_all_data, name='get-all-data'),
+    # New URL for API data
+    path('data/all/', get_all_data, name='get-all-data'),
     
     # Default redirect
     path('', RedirectView.as_view(url='auth/login/', permanent=False)),
     
     # Add this line for home page
     path('home/', item_list, name='home'),
-    path('items/', item_list, name='item-list'),
+    path('items/', ExcelDataListView.as_view(), name='item_list'),
     
     # New URL for deleting null records
     path('api/delete-null-records/', delete_null_records, name='delete-null-records'),  # Updated path
