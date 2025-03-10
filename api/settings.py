@@ -264,7 +264,7 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 2*1024*1024*1024 # 2GB
 # Increase the maximum number of fields
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 100000
 
-LOGIN_URL = '/auth/login/'  # Changed to match URL pattern
-LOGIN_REDIRECT_URL = '/home/'  # Changed to match URL pattern
-LOGOUT_REDIRECT_URL = '/auth/login/'  # Changed to match URL pattern
+LOGIN_URL = 'aap_api:login'
+LOGIN_REDIRECT_URL = 'aap_api:index'
+LOGOUT_REDIRECT_URL = 'aap_api:login'
 

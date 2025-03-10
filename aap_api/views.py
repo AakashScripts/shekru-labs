@@ -42,6 +42,8 @@ from django.db.models import Q
 from .models import ExcelData
 import csv
 from django.views.decorators.http import require_POST
+from django.contrib.auth import authenticate, login
+from django.contrib.auth.decorators import login_required
 
 logger = logging.getLogger(__name__)
 
@@ -757,6 +759,23 @@ def download_selected(request):
         ])
     
     return response
+
+def login_view(request):
+    if request.user.is_authenticated:
+        return redirect('aap_api:index')
+        
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        
+        if user is not None:
+            login(request, user)
+            return redirect('aap_api:index')
+        else:
+            messages.error(request, 'Invalid credentials')
+    
+    return render(request, 'aap_api/item_list.html')
 
 
 

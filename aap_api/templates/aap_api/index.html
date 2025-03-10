@@ -425,187 +425,227 @@
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <div class="filter-section">
-        <form method="GET" id="filterForm" class="filter-form">
-            <div class="row">
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label for="name_search">Search by Name/Email:</label>
-                        <input type="text" 
-                               class="form-control" 
-                               id="name_search" 
-                               name="name_search" 
-                               value="{{ current_filters.name_search }}"
-                               placeholder="Enter name or email...">
+{% if not user.is_authenticated %}
+    <!-- Login Form -->
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-4">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white text-center py-3">
+                        <h4 class="mb-0">Login</h4>
                     </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label for="job_title">Job Title:</label>
-                        <select class="form-control" id="job_title" name="job_title">
-                            <option value="">All Titles</option>
-                            {% for title in job_titles %}
-                                <option value="{{ title }}" 
-                                    {% if title == current_filters.job_title %}selected{% endif %}>
-                                    {{ title }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label for="location">Location:</label>
-                        <select class="form-control" id="location" name="location">
-                            <option value="">All Locations</option>
-                            {% for loc in locations %}
-                                <option value="{{ loc }}"
-                                    {% if loc == current_filters.location %}selected{% endif %}>
-                                    {{ loc }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="form-group">
-                        <label for="company">Company:</label>
-                        <select class="form-control" id="company" name="company">
-                            <option value="">All Companies</option>
-                            {% for comp in companies %}
-                                <option value="{{ comp }}"
-                                    {% if comp == current_filters.company %}selected{% endif %}>
-                                    {{ comp }}
-                                </option>
-                            {% endfor %}
-                        </select>
+                    <div class="card-body p-4">
+                        {% if messages %}
+                            <div class="alert alert-danger">
+                                {% for message in messages %}
+                                    {{ message }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="username" class="form-label">Username</label>
+                                <input type="text" class="form-control" id="username" name="username" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Password</label>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Log In</button>
+                        </form>
                     </div>
                 </div>
             </div>
-            <div class="row mt-3">
-                <div class="col-12">
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-search"></i> Search
-                        </button>
-                        <button type="button" id="clearFilters" class="btn btn-outline-secondary">
-                            <i class="fas fa-times"></i> Clear Filters
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </form>
-    </div>
-
-    <div class="data-section mt-4">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3>Results ({{ filtered_records }} of {{ total_records }} total records)</h3>
-            <button id="downloadSelected" class="btn btn-success" disabled>
-                <i class="fas fa-download"></i> Download Selected
-            </button>
-        </div>
-        
-        <div class="selection-info" id="selectionInfo">
-            <div class="d-flex justify-content-between align-items-center">
-                <span>
-                    <i class="fas fa-info-circle"></i> 
-                    Selections are maintained across pages. Use the Clear Selections button to reset.
-                </span>
-            </div>
-        </div>
-
-        <!-- Add this before the table -->
-        <div class="selection-info mb-3" id="selectionInfo">
-            <div class="d-flex justify-content-between align-items-center">
-                <span></span>
-            </div>
-        </div>
-
-        <!-- Update the table -->
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>
-                            <input type="checkbox" id="selectAll" class="form-check-input">
-                        </th>
-                        <th>Name</th>
-                        <th>Job Title</th>
-                        <th>Email</th>
-                        <th>Phone</th>
-                        <th>Location</th>
-                        <th>Experience</th>
-                        <th>Company</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in items %}
-                    <tr {% if item.id|stringformat:"s" in request.session.selected_ids %}class="selected"{% endif %}>
-                        <td>
-                            <input type="checkbox" 
-                                   class="form-check-input record-checkbox" 
-                                   value="{{ item.id }}" 
-                                   {% if item.id|stringformat:"s" in request.session.selected_ids %}checked{% endif %}>
-                        </td>
-                        <td>{{ item.name }}</td>
-                        <td>{{ item.job_title }}</td>
-                        <td>{{ item.email_id }}</td>
-                        <td>{{ item.phone_number }}</td>
-                        <td>{{ item.current_location }}</td>
-                        <td>{{ item.total_experience }}</td>
-                        <td>{{ item.current_company_name }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
         </div>
     </div>
-    <!-- Add this after your table -->
-    <div class="pagination-section mt-4">
-        {% if items.has_other_pages %}
-        <nav aria-label="Page navigation">
-            <ul class="pagination justify-content-center">
-                {% if items.has_previous %}
-                <li class="page-item">
-                    <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">&laquo; First</a>
-                </li>
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ items.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Previous</a>
-                </li>
-                {% endif %}
+{% else %}
+    <!-- Main Content -->
+    <div class="container-fluid">
+        <div class="container mt-4">
+            <div class="filter-section">
+                <form method="GET" id="filterForm" class="filter-form">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="name_search">Search by Name/Email:</label>
+                                <input type="text" 
+                                    class="form-control" 
+                                    id="name_search" 
+                                    name="name_search" 
+                                    value="{{ current_filters.name_search }}"
+                                    placeholder="Enter name or email...">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="job_title">Job Title:</label>
+                                <select class="form-control" id="job_title" name="job_title">
+                                    <option value="">All Titles</option>
+                                    {% for title in job_titles %}
+                                        <option value="{{ title }}" 
+                                            {% if title == current_filters.job_title %}selected{% endif %}>
+                                            {{ title }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="location">Location:</label>
+                                <select class="form-control" id="location" name="location">
+                                    <option value="">All Locations</option>
+                                    {% for loc in locations %}
+                                        <option value="{{ loc }}"
+                                            {% if loc == current_filters.location %}selected{% endif %}>
+                                            {{ loc }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="company">Company:</label>
+                                <select class="form-control" id="company" name="company">
+                                    <option value="">All Companies</option>
+                                    {% for comp in companies %}
+                                        <option value="{{ comp }}"
+                                            {% if comp == current_filters.company %}selected{% endif %}>
+                                            {{ comp }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> Search
+                                </button>
+                                <button type="button" id="clearFilters" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times"></i> Clear Filters
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
 
-                {% for num in items.paginator.page_range %}
-                    {% if items.number == num %}
-                        <li class="page-item active">
-                            <span class="page-link">{{ num }}</span>
-                        </li>
-                    {% elif num > items.number|add:'-3' and num < items.number|add:'3' %}
+            <div class="data-section mt-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h3>Results ({{ filtered_records }} of {{ total_records }} total records)</h3>
+                    <button id="downloadSelected" class="btn btn-success" disabled>
+                        <i class="fas fa-download"></i> Download Selected
+                    </button>
+                </div>
+                
+                <div class="selection-info" id="selectionInfo">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>
+                            <i class="fas fa-info-circle"></i> 
+                            Selections are maintained across pages. Use the Clear Selections button to reset.
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Add this before the table -->
+                <div class="selection-info mb-3" id="selectionInfo">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span></span>
+                    </div>
+                </div>
+
+                <!-- Update the table -->
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <input type="checkbox" id="selectAll" class="form-check-input">
+                                </th>
+                                <th>Name</th>
+                                <th>Job Title</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Location</th>
+                                <th>Experience</th>
+                                <th>Company</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr {% if item.id|stringformat:"s" in request.session.selected_ids %}class="selected"{% endif %}>
+                                <td>
+                                    <input type="checkbox" 
+                                        class="form-check-input record-checkbox" 
+                                        value="{{ item.id }}" 
+                                        {% if item.id|stringformat:"s" in request.session.selected_ids %}checked{% endif %}>
+                                </td>
+                                <td>{{ item.name }}</td>
+                                <td>{{ item.job_title }}</td>
+                                <td>{{ item.email_id }}</td>
+                                <td>{{ item.phone_number }}</td>
+                                <td>{{ item.current_location }}</td>
+                                <td>{{ item.total_experience }}</td>
+                                <td>{{ item.current_company_name }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- Add this after your table -->
+            <div class="pagination-section mt-4">
+                {% if items.has_other_pages %}
+                <nav aria-label="Page navigation">
+                    <ul class="pagination justify-content-center">
+                        {% if items.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                            <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">&laquo; First</a>
                         </li>
-                    {% endif %}
-                {% endfor %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ items.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Previous</a>
+                        </li>
+                        {% endif %}
 
-                {% if items.has_next %}
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ items.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Next</a>
-                </li>
-                <li class="page-item">
-                    <a class="page-link" href="?page={{ items.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Last &raquo;</a>
-                </li>
+                        {% for num in items.paginator.page_range %}
+                            {% if items.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% elif num > items.number|add:'-3' and num < items.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if items.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ items.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Next</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ items.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Last &raquo;</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                <div class="text-center mt-2">
+                    <small class="text-muted">
+                        Showing {{ items.start_index }} to {{ items.end_index }} of {{ filtered_records }} records
+                        {% if filtered_records != total_records %}(filtered from {{ total_records }} total records){% endif %}
+                    </small>
+                </div>
                 {% endif %}
-            </ul>
-        </nav>
-        <div class="text-center mt-2">
-            <small class="text-muted">
-                Showing {{ items.start_index }} to {{ items.end_index }} of {{ filtered_records }} records
-                {% if filtered_records != total_records %}(filtered from {{ total_records }} total records){% endif %}
-            </small>
+            </div>
         </div>
-        {% endif %}
     </div>
-</div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}

@@ -6,6 +6,7 @@ from .auth_views import login_view, register_view, logout_view
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
+from django.contrib.auth.decorators import login_required
 
 # Create a router and register our viewsets with it
 router = DefaultRouter()
@@ -51,6 +52,10 @@ urlpatterns = [
 
     # New URL for downloading selected records
     path('download-selected/', download_selected, name='download-selected'),
+
+    # New URL for login and index with login required
+    path('', login_view, name='login'),
+    path('index/', login_required(index), name='index'),
 ]
 
 # Add media URL patterns for file uploads
