@@ -302,30 +302,6 @@
     .card, .welcome-header, .filter-form, .bulk-actions {
         animation: fadeIn 0.6s ease-out;
     }
-    .filter-section {
-        background: #f8f9fa;
-        padding: 20px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-    }
-
-    .filter-form .form-group {
-        margin-bottom: 15px;
-    }
-
-    .filter-form select,
-    .filter-form input {
-        width: 100%;
-    }
-
-    .btn-primary,
-    .btn-secondary {
-        min-width: 100px;
-    }
-
-    .spinner-border {
-        margin-right: 5px;
-    }
 </style>
 {% endblock %}
 
@@ -531,97 +507,62 @@
 
         <div id="loadingIndicator" style="display:none;">Uploading, please wait...</div>
 
-        <div class="filter-section">
-    <form method="GET" id="filterForm" class="filter-form">
-        <div class="row">
-            <div class="col-md-3">
-                <div class="form-group">
+        <div class="filter-form">
+            <form method="get" id="filterForm">
+                <div class="filter-group">
                     <label for="name_search">Search by Name:</label>
                     <input type="text" 
-                           class="form-control" 
                            id="name_search" 
                            name="name_search" 
-                           value="{{ request.GET.name_search }}"
+                           class="search-input" 
+                           value="{{ current_filters.name_search }}" 
                            placeholder="Enter name...">
                 </div>
-            </div>
-            <div class="col-md-3">
-                <div class="form-group">
+
+                <div class="filter-group">
                     <label for="job_title">Job Title:</label>
-                    <select class="form-control" id="job_title" name="job_title">
-                        <option value="">All Titles</option>
-                        {% for title in job_titles %}
-                            <option value="{{ title }}" 
-                                {% if request.GET.job_title == title %}selected{% endif %}>
-                                {{ title }}
-                            </option>
+                    <select name="job_title" id="job_title">
+                        <option value="">All</option>
+                        {% for value, label in job_titles %}
+                        <option value="{{ value }}" {% if current_filters.job_title == value %}selected{% endif %}>{{ label }}</option>
                         {% endfor %}
                     </select>
                 </div>
-            </div>
-            <div class="col-md-3">
-                <div class="form-group">
+
+                <div class="filter-group">
                     <label for="location">Location:</label>
-                    <select class="form-control" id="location" name="location">
-                        <option value="">All Locations</option>
-                        {% for loc in locations %}
-                            <option value="{{ loc }}"
-                                {% if request.GET.location == loc %}selected{% endif %}>
-                                {{ loc }}
-                            </option>
+                    <select name="location" id="location">
+                        <option value="">All</option>
+                        {% for location in locations %}
+                        <option value="{{ location }}" {% if current_filters.location == location %}selected{% endif %}>{{ location }}</option>
                         {% endfor %}
                     </select>
                 </div>
-            </div>
-            <div class="col-md-3 mt-4">
-                <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-search"></i> Search
-                </button>
-                <a href="{% url 'aap_api:home' %}" class="btn btn-secondary">
-                    <i class="fas fa-times"></i> Clear
-                </a>
-            </div>
+
+                <div class="filter-group">
+                    <label for="company">Company:</label>
+                    <select name="company" id="company">
+                        <option value="">All</option>
+                        {% for company in companies %}
+                        <option value="{{ company }}" {% if current_filters.company == company %}selected{% endif %}>{{ company }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+               
+
+                <div class="filter-buttons">
+                    <button type="submit" class="button">
+                        <i class="material-icons">search</i>
+                        Apply Filters
+                    </button>
+                    <a href="{% url 'aap_api:item-list' %}" class="button clear-filters">
+                        <i class="material-icons">clear</i>
+                        Clear Filters
+                    </a>
+                </div>
+            </form>
         </div>
-    </form>
-</div>
-
-<!-- Add this script after your existing scripts -->
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const filterForm = document.getElementById('filterForm');
-    const formInputs = filterForm.querySelectorAll('input, select');
-
-    // Handle form submission
-    filterForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        // Remove empty fields from form submission
-        const formData = new FormData(filterForm);
-        const searchParams = new URLSearchParams();
-        
-        for (let [key, value] of formData.entries()) {
-            if (value.trim() !== '') {
-                searchParams.append(key, value);
-            }
-        }
-        
-        // Add page parameter if it exists
-        const currentPage = new URLSearchParams(window.location.search).get('page');
-        if (currentPage) {
-            searchParams.append('page', '1');
-        }
-        
-        // Redirect with filters
-        window.location.href = `${window.location.pathname}?${searchParams.toString()}`;
-    });
-
-    // Handle clear filters
-    document.querySelector('.clear-filters').addEventListener('click', function(e) {
-        e.preventDefault();
-        window.location.href = this.href;
-    });
-});
-</script>
 
         <div class="records-info">
             <p>Total Records: {{ total_records }}</p>
@@ -894,76 +835,6 @@ document.getElementById('deleteNullRecords').addEventListener('click', async fun
             text: 'Failed to delete null records: ' + error.message
         });
     }
-});
-</script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const filterForm = document.getElementById('filterForm');
-    const nameInput = document.getElementById('name_search');
-
-    // Enable real-time search
-    nameInput.addEventListener('input', debounce(function() {
-        filterForm.submit();
-    }, 500));
-
-    // Submit form on Enter key
-    nameInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            filterForm.submit();
-        }
-    });
-
-    // Clear filters
-    document.querySelector('.btn-secondary').addEventListener('click', function(e) {
-        e.preventDefault();
-        window.location.href = this.getAttribute('href');
-    });
-
-    // Show loading state
-    filterForm.addEventListener('submit', function() {
-        const submitBtn = this.querySelector('.btn-primary');
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Searching...';
-    });
-});
-
-// Debounce function to limit API calls
-function debounce(func, wait) {
-    let timeout;
-    return function() {
-        const context = this;
-        const args = arguments;
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(context, args), wait);
-    };
-}
-</script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const filterForm = document.querySelector('.filter-form');
-    const nameInput = document.getElementById('name_search');
-
-    // Enable search on Enter key
-    nameInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            filterForm.submit();
-        }
-    });
-
-    // Clear filters
-    document.querySelector('.btn-secondary').addEventListener('click', function(e) {
-        e.preventDefault();
-        window.location.href = this.getAttribute('href');
-    });
-
-    // Show loading state on form submit
-    filterForm.addEventListener('submit', function() {
-        document.querySelector('.btn-primary').setAttribute('disabled', 'disabled');
-        document.querySelector('.btn-primary').innerHTML = 
-            '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Searching...';
-    });
 });
 </script>
 {% endblock %}
