@@ -1,0 +1,22 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block content %}
+<div>
+    <h2>Upload Excel File</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="file" name="excel_file" accept=".xlsx,.xls">
+        <input type="submit" value="Upload">
+    </form>
+</div>
+
+<div style="margin-top: 20px;">
+    <h3>Instructions:</h3>
+    <ul>
+        <li>Excel file should have these columns: Name, Job Title, Email, Phone, Location, Experience, Company</li>
+        <li>Data will be automatically visible after import</li>
+        <li>Use the actions above to manage visibility</li>
+    </ul>
+</div>
+{% endblock %}
