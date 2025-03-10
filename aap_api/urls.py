@@ -1,7 +1,7 @@
 from django.urls import path, include
 from django.views.generic import RedirectView
 from rest_framework.routers import DefaultRouter
-from .views import ExcelDataViewSet, DownloadHistoryListView, ExcelDataListView, get_all_data, item_list, delete_null_records
+from .views import ExcelDataViewSet, DownloadHistoryListView, ExcelDataListView, get_all_data, item_list, delete_null_records, index, download_selected
 from .auth_views import login_view, register_view, logout_view
 from django.conf import settings
 from django.conf.urls.static import static
@@ -41,11 +41,16 @@ urlpatterns = [
     path('', RedirectView.as_view(url='auth/login/', permanent=False)),
     
     # Add this line for home page
-    path('home/', item_list, name='home'),
-    path('items/', ExcelDataListView.as_view(), name='item_list'),
+    path('home/', index, name='home'),
     
     # New URL for deleting null records
-    path('api/delete-null-records/', delete_null_records, name='delete-null-records'),  # Updated path
+    path('api/delete-null-records/', delete_null_records, name='delete-null-records'),
+
+    # Added index view
+    path('', index, name='index'),
+
+    # New URL for downloading selected records
+    path('download-selected/', download_selected, name='download-selected'),
 ]
 
 # Add media URL patterns for file uploads

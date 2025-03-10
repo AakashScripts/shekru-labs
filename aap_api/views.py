@@ -35,11 +35,13 @@ from rest_framework.throttling import AnonRateThrottle
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from .models import ExcelData
-from django.core.paginator import Paginator
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.db.models import Q
 from .models import ExcelData
+import csv
+from django.views.decorators.http import require_POST
 
 logger = logging.getLogger(__name__)
 
@@ -518,41 +520,49 @@ def get_all_data(request):
 
 @login_required
 def item_list(request):
-    # Initialize queryset
-    queryset = ExcelData.objects.filter(is_visible=True)
+    # Get filter parameters
+    name_search = request.GET.get('name_search', '')
+    job_title = request.GET.get('job_title', '')
+    location = request.GET.get('location', '')
+    company = request.GET.get('company', '')
 
-    # Get search parameters
-    name_search = request.GET.get('name_search', '').strip()
-    job_title = request.GET.get('job_title', '').strip()
-    location = request.GET.get('location', '').strip()
+    # Base queryset
+    queryset = ExcelData.objects.all()
 
     # Apply filters
     if name_search:
-        queryset = queryset.filter( Q(name__icontains=name_search) |
-            Q(email_id__icontains(name_search)) )
-           
-         
+        queryset = queryset.filter(name__icontains(name_search))
     if job_title:
-        queryset = queryset.filter(job_title__iexact=job_title)
-    
+        queryset = queryset.filter(job_title=job_title)
     if location:
-        queryset = queryset.filter(current_location__iexact=location)
+        queryset = queryset.filter(current_location=location)
+    if company:
+        queryset = queryset.filter(current_company_name=company)
 
     # Get unique values for dropdowns
+    job_titles = ExcelData.objects.values_list('job_title', flat=True).distinct()
+    locations = ExcelData.objects.values_list('current_location', flat=True).distinct()
+    companies = ExcelData.objects.values_list('current_company_name', flat=True).distinct()
+
+    # Pagination
+    paginator = Paginator(queryset, 30)  # Show 10 items per page
+    page = request.GET.get('page')
+    items = paginator.get_page(page)
+
     context = {
-        'items': queryset.order_by('-created_at'),
-        'job_titles': ExcelData.objects.values_list(
-            'job_title', flat=True
-        ).exclude(job_title='').distinct(),
-        'locations': ExcelData.objects.values_list(
-            'current_location', flat=True
-        ).exclude(current_location='').distinct(),
+        'items': items,
+        'total_records': queryset.count(),
+        'job_titles': [(jt, jt) for jt in job_titles if jt],
+        'locations': [loc for loc in locations if loc],
+        'companies': [comp for comp in companies if comp],
         'current_filters': {
             'name_search': name_search,
             'job_title': job_title,
             'location': location,
+            'company': company,
         },
-        'total_results': queryset.count()
+        'is_paginated': items.has_other_pages(),
+        'page_obj': items,
     }
 
     return render(request, 'aap_api/item_list.html', context)
@@ -638,6 +648,115 @@ def get_all_data(request):
             'status': 'error',
             'message': str(e)
         }, status=500)
+
+@login_required
+def index(request):
+    # Get filter parameters
+    name_search = request.GET.get('name_search', '').strip()
+    job_title = request.GET.get('job_title', '').strip()
+    location = request.GET.get('location', '').strip()
+    company = request.GET.get('company', '').strip()
+
+    # Base queryset
+    queryset = ExcelData.objects.filter(is_visible=True)
+
+    # Apply filters
+    if name_search:
+        queryset = queryset.filter(
+            Q(name__icontains(name_search)) |
+            Q(email_id__icontains(name_search))
+        )
+    if job_title:
+        queryset = queryset.filter(job_title__iexact=job_title)
+    if location:
+        queryset = queryset.filter(current_location__iexact=location)
+    if company:
+        queryset = queryset.filter(current_company_name__iexact=company)
+
+    # Order queryset
+    queryset = queryset.order_by('-created_at')
+
+    # Pagination
+    paginator = Paginator(queryset, 30)  # Show 30 records per page
+    page = request.GET.get('page')
+    try:
+        items = paginator.page(page)
+    except PageNotAnInteger:
+        items = paginator.page(1)
+    except EmptyPage:
+        items = paginator.page(paginator.num_pages)
+
+    # Get unique values for dropdowns
+    job_titles = list(dict.fromkeys(
+        ExcelData.objects.exclude(job_title='')
+        .values_list('job_title', flat=True)
+        .distinct()
+        .order_by('job_title')
+    ))
+
+    locations = list(dict.fromkeys(
+        ExcelData.objects.exclude(current_location='')
+        .values_list('current_location', flat=True)
+        .distinct()
+        .order_by('current_location')
+    ))
+
+    companies = list(dict.fromkeys(
+        ExcelData.objects.exclude(current_company_name='')
+        .values_list('current_company_name', flat=True)
+        .distinct()
+        .order_by('current_company_name')
+    ))
+
+    total_records = ExcelData.objects.filter(is_visible=True).count()
+    filtered_records = queryset.count()
+
+    context = {
+        'items': items,
+        'job_titles': job_titles,
+        'locations': locations,
+        'companies': companies,
+        'current_filters': {
+            'name_search': name_search,
+            'job_title': job_title,
+            'location': location,
+            'company': company
+        },
+        'total_records': total_records,
+        'filtered_records': filtered_records,
+        'current_page': page
+    }
+
+    return render(request, 'aap_api/index.html', context)
+
+@require_POST
+def download_selected(request):
+    selected_ids = request.POST.get('selected_ids', '').split(',')
+    records = ExcelData.objects.filter(id__in=selected_ids)
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="selected_records.csv"'
+    
+    writer = csv.writer(response)
+    # Write headers
+    writer.writerow([
+        'Name', 'Job Title', 'Email', 'Phone Number',
+        'Location', 'Experience', 'Company'
+    ])
+    
+    # Write data
+    for record in records:
+        writer.writerow([
+            record.name,
+            record.job_title,
+            record.email_id,
+            record.phone_number,
+            record.current_location,
+            record.total_experience,
+            record.current_company_name
+        ])
+    
+    return response
 
 
 
