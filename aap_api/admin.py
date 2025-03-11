@@ -32,12 +32,31 @@ admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
 
 # Register your other models
+@admin.register(ExcelData)
 class ExcelDataAdmin(admin.ModelAdmin):
-    list_display = ('name', 'job_title', 'email_id', 'phone_number', 
-                   'current_location', 'total_experience', 'current_company_name')
+    list_display = (
+        'name',
+        'job_title', 
+        'email_id',
+        'phone_number',
+        'current_location',
+        'total_experience'
+    )  # Removed current_company_name
+    
     list_filter = ('job_title', 'current_location')
     search_fields = ('name', 'email_id', 'phone_number')
-    list_per_page = 50
+    
+    def get_fields(self, request, obj=None):
+        fields = super().get_fields(request, obj)
+        if 'current_company_name' in fields:
+            fields.remove('current_company_name')
+        return fields
+    
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        if 'current_company_name' in form.base_fields:
+            del form.base_fields['current_company_name']
+        return form
 
 class ZipUploadAdmin(admin.ModelAdmin):
     list_display = ('file', 'uploaded_at', 'processed')
@@ -103,7 +122,6 @@ class ZipUploadAdmin(admin.ModelAdmin):
     process_zip_files.short_description = "Process selected ZIP files"
 
 # Register models
-admin.site.register(ExcelData, ExcelDataAdmin)
 admin.site.register(ZipUpload, ZipUploadAdmin)
 
 @admin.register(UploadedExcel)

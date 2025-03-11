@@ -56,8 +56,8 @@ urlpatterns = [
     # New URL for login and index with login required
     path('', login_view, name='login'),
     path('index/', login_required(index), name='index'),
-]
 
-# Add media URL patterns for file uploads
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # New URLs for register and login
+    path('register/', register_view, name='register'),
+    path('login/', login_view, name='login'),
+]

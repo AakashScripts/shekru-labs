@@ -239,6 +239,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
+        // Submit form and handle response
         form.submit();
     });
     
@@ -251,9 +252,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 confirmButtonText: 'OK',
                 confirmButtonColor: '#0072ff',
                 background: 'rgba(255, 255, 255, 0.9)',
-                backdrop: 'rgba(0, 0, 0, 0.4)'
+                backdrop: 'rgba(0, 0, 0, 0.4)',
+                allowOutsideClick: false
             }).then((result) => {
-                if (result.isConfirmed && '{{ message.tags }}' === 'success') {
+                if ('{{ message.tags }}' === 'success') {
                     window.location.href = "{% url 'aap_api:login' %}";
                 }
             });

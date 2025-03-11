@@ -44,6 +44,8 @@ import csv
 from django.views.decorators.http import require_POST
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
+from django.urls import reverse
+from .forms import UserRegistrationForm
 
 logger = logging.getLogger(__name__)
 
@@ -776,6 +778,24 @@ def login_view(request):
             messages.error(request, 'Invalid credentials')
     
     return render(request, 'aap_api/item_list.html')
+
+def register_view(request):
+    if request.user.is_authenticated:
+        return redirect('aap_api:index')
+        
+    if request.method == 'POST':
+        form = UserRegistrationForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Registration successful! Please login.')
+            return redirect('aap_api:login')
+        else:
+            for error in form.errors.values():
+                messages.error(request, error[0])
+    else:
+        form = UserRegistrationForm()
+    
+    return render(request, 'aap_api/register.html', {'form': form})
 
 
 
