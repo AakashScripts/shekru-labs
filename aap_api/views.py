@@ -44,8 +44,6 @@ import csv
 from django.views.decorators.http import require_POST
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
-from django.urls import reverse
-from .forms import UserRegistrationForm
 
 logger = logging.getLogger(__name__)
 
@@ -667,35 +665,59 @@ def index(request):
     # Apply filters
     if name_search:
         queryset = queryset.filter(
-            Q(name__icontains=name_search) |  # Fixed syntax here
-            Q(email_id__icontains=name_search)
+            Q(name__icontains(name_search)) |
+            Q(email_id__icontains(name_search))
         )
-    
     if job_title:
         queryset = queryset.filter(job_title__iexact=job_title)
-    
     if location:
         queryset = queryset.filter(current_location__iexact=location)
-        
     if company:
         queryset = queryset.filter(current_company_name__iexact=company)
 
-    # Get total and filtered counts
+    # Order queryset
+    queryset = queryset.order_by('-created_at')
+
+    # Pagination
+    paginator = Paginator(queryset, 30)  # Show 30 records per page
+    page = request.GET.get('page')
+    try:
+        items = paginator.page(page)
+    except PageNotAnInteger:
+        items = paginator.page(1)
+    except EmptyPage:
+        items = paginator.page(paginator.num_pages)
+
+    # Get unique values for dropdowns
+    job_titles = list(dict.fromkeys(
+        ExcelData.objects.exclude(job_title='')
+        .values_list('job_title', flat=True)
+        .distinct()
+        .order_by('job_title')
+    ))
+
+    locations = list(dict.fromkeys(
+        ExcelData.objects.exclude(current_location='')
+        .values_list('current_location', flat=True)
+        .distinct()
+        .order_by('current_location')
+    ))
+
+    companies = list(dict.fromkeys(
+        ExcelData.objects.exclude(current_company_name='')
+        .values_list('current_company_name', flat=True)
+        .distinct()
+        .order_by('current_company_name')
+    ))
+
     total_records = ExcelData.objects.filter(is_visible=True).count()
     filtered_records = queryset.count()
 
-    # Get unique values for dropdowns
     context = {
-        'items': queryset.order_by('-created_at'),
-        'job_titles': ExcelData.objects.values_list(
-            'job_title', flat=True
-        ).exclude(job_title='').distinct(),
-        'locations': ExcelData.objects.values_list(
-            'current_location', flat=True
-        ).exclude(current_location='').distinct(),
-        'companies': ExcelData.objects.values_list(
-            'current_company_name', flat=True
-        ).exclude(current_company_name='').distinct(),
+        'items': items,
+        'job_titles': job_titles,
+        'locations': locations,
+        'companies': companies,
         'current_filters': {
             'name_search': name_search,
             'job_title': job_title,
@@ -703,7 +725,8 @@ def index(request):
             'company': company
         },
         'total_records': total_records,
-        'filtered_records': filtered_records
+        'filtered_records': filtered_records,
+        'current_page': page
     }
 
     return render(request, 'aap_api/index.html', context)
@@ -753,24 +776,6 @@ def login_view(request):
             messages.error(request, 'Invalid credentials')
     
     return render(request, 'aap_api/item_list.html')
-
-def register_view(request):
-    if request.user.is_authenticated:
-        return redirect('aap_api:index')
-        
-    if request.method == 'POST':
-        form = UserRegistrationForm(request.POST)
-        if form.is_valid():
-            form.save()
-            messages.success(request, 'Registration successful! Please login.')
-            return redirect('aap_api:login')
-        else:
-            for error in form.errors.values():
-                messages.error(request, error[0])
-    else:
-        form = UserRegistrationForm()
-    
-    return render(request, 'aap_api/register.html', {'form': form})
 
 
 
