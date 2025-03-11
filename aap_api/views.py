@@ -667,59 +667,35 @@ def index(request):
     # Apply filters
     if name_search:
         queryset = queryset.filter(
-            Q(name__icontains(name_search)) |
-            Q(email_id__icontains(name_search))
+            Q(name__icontains=name_search) |  # Fixed syntax here
+            Q(email_id__icontains=name_search)
         )
+    
     if job_title:
         queryset = queryset.filter(job_title__iexact=job_title)
+    
     if location:
         queryset = queryset.filter(current_location__iexact=location)
+        
     if company:
         queryset = queryset.filter(current_company_name__iexact=company)
 
-    # Order queryset
-    queryset = queryset.order_by('-created_at')
-
-    # Pagination
-    paginator = Paginator(queryset, 30)  # Show 30 records per page
-    page = request.GET.get('page')
-    try:
-        items = paginator.page(page)
-    except PageNotAnInteger:
-        items = paginator.page(1)
-    except EmptyPage:
-        items = paginator.page(paginator.num_pages)
-
-    # Get unique values for dropdowns
-    job_titles = list(dict.fromkeys(
-        ExcelData.objects.exclude(job_title='')
-        .values_list('job_title', flat=True)
-        .distinct()
-        .order_by('job_title')
-    ))
-
-    locations = list(dict.fromkeys(
-        ExcelData.objects.exclude(current_location='')
-        .values_list('current_location', flat=True)
-        .distinct()
-        .order_by('current_location')
-    ))
-
-    companies = list(dict.fromkeys(
-        ExcelData.objects.exclude(current_company_name='')
-        .values_list('current_company_name', flat=True)
-        .distinct()
-        .order_by('current_company_name')
-    ))
-
+    # Get total and filtered counts
     total_records = ExcelData.objects.filter(is_visible=True).count()
     filtered_records = queryset.count()
 
+    # Get unique values for dropdowns
     context = {
-        'items': items,
-        'job_titles': job_titles,
-        'locations': locations,
-        'companies': companies,
+        'items': queryset.order_by('-created_at'),
+        'job_titles': ExcelData.objects.values_list(
+            'job_title', flat=True
+        ).exclude(job_title='').distinct(),
+        'locations': ExcelData.objects.values_list(
+            'current_location', flat=True
+        ).exclude(current_location='').distinct(),
+        'companies': ExcelData.objects.values_list(
+            'current_company_name', flat=True
+        ).exclude(current_company_name='').distinct(),
         'current_filters': {
             'name_search': name_search,
             'job_title': job_title,
@@ -727,8 +703,7 @@ def index(request):
             'company': company
         },
         'total_records': total_records,
-        'filtered_records': filtered_records,
-        'current_page': page
+        'filtered_records': filtered_records
     }
 
     return render(request, 'aap_api/index.html', context)

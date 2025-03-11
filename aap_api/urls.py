@@ -10,7 +10,7 @@ from django.contrib.auth.decorators import login_required
 
 # Create a router and register our viewsets with it
 router = DefaultRouter()
-router.register(r'items', ExcelDataViewSet, basename='item')  # This creates /api/items/ endpoints
+
 router.register(r'data', ExcelDataViewSet, basename='exceldata')
 
 app_name = 'aap_api'
